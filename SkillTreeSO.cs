@@ -2,11 +2,6 @@ using UnityEngine;
 
 namespace SkillTree
 {
-    public enum CurrencyType
-    {
-            
-    }
-    
     /// <summary>
     /// Defines the structure, pricing rules, and currency type of a linear skill tree.
     /// Acts as a config asset that designers can edit in the Inspector.
@@ -21,7 +16,7 @@ namespace SkillTree
 
         [Header("Currency")]
         [Tooltip("The currency type spent to unlock nodes in this tree.")]
-        [SerializeField] private CurrencyType currencyType;
+        [SerializeField] private CurrencyTokenSO currencyToken;
 
         [Header("Pricing")]
         [Tooltip("When enabled, node prices are calculated from the curve below. " +
@@ -35,7 +30,7 @@ namespace SkillTree
         [SerializeField] private float priceMultiplier = 1f;
 
         public SkillTreeNodeSO[] Nodes => nodes;
-        public CurrencyType CurrencyType => currencyType;
+        public CurrencyTokenSO CurrencyToken => currencyToken;
 
         /// <summary>
         /// Returns the price for a node at the given index.

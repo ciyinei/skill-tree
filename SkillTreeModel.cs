@@ -6,16 +6,13 @@ namespace SkillTree
     /// <summary>
     /// Runtime state for a skill tree. Created from a <see cref="SkillTreeSO"/> config
     /// and tracks which nodes have been unlocked.
-    /// Currency is managed externally via <see cref="ICurrencyManager"/>.
+    /// Currency logic is injected via delegates.
     /// Does not modify the source SO — each instance is independent.
     /// </summary>
     public class SkillTreeModel
     {
         /// <summary>The config this model was created from.</summary>
         public SkillTreeSO Config { get; }
-
-        /// <summary>The currency type used to pay for unlocks in this tree.</summary>
-        public CurrencyType CurrencyType { get; }
 
         /// <summary>Index of the next node available to unlock. Equals node count when the tree is complete.</summary>
         public int NextUnlockIndex { get; private set; }
@@ -29,19 +26,29 @@ namespace SkillTree
         /// </summary>
         public event Action<int> OnNodeUnlocked;
 
-        private readonly ICurrencyManager _currencyManager;
+        private readonly Func<float, bool> CanAfford;
+        private readonly Action<float> OnSpendCurrency;
 
         /// <param name="config">The SO that defines this tree's nodes and pricing.</param>
-        /// <param name="currencyManager">The currency system used to pay for unlocks.</param>
-        /// <param name="currencyType">The currency type this tree costs.</param>
+        /// <param name="canAfford">
+        /// Returns true if the player can afford the given amount.
+    
+        /// </param>
+        /// <param name="spendCurrency">
+        /// Deducts the given amount from the player's balance.
+        /// </param>
         /// <param name="unlockedCount">
         /// Number of nodes already unlocked (e.g. loaded from a save).
         /// </param>
-        public SkillTreeModel(SkillTreeSO config, ICurrencyManager currencyManager, int unlockedCount = 0)
+        public SkillTreeModel(
+            SkillTreeSO config,
+            Func<float, bool> canAfford,
+            Action<float> spendCurrency,
+            int unlockedCount = 0)
         {
             Config = config ?? throw new ArgumentNullException(nameof(config));
-            _currencyManager = currencyManager ?? throw new ArgumentNullException(nameof(currencyManager));
-            CurrencyType = config.CurrencyType;
+            CanAfford = canAfford ?? throw new ArgumentNullException(nameof(canAfford));
+            OnSpendCurrency = spendCurrency ?? throw new ArgumentNullException(nameof(spendCurrency));
             NextUnlockIndex = Mathf.Clamp(unlockedCount, 0, config.Nodes.Length);
         }
 
@@ -51,20 +58,20 @@ namespace SkillTree
         public float GetNextPrice() => IsComplete ? 0f : Config.GetPrice(NextUnlockIndex);
 
         /// <summary>
-        /// Returns true if the currency manager has enough balance to unlock the next node.
+        /// Returns true if the injected affordability check passes for the next node's price.
         /// </summary>
-        public bool CanUnlockNext() => !IsComplete && _currencyManager.CanAfford(CurrencyType, GetNextPrice());
+        public bool CanUnlockNext() => !IsComplete && CanAfford(GetNextPrice());
 
         /// <summary>
         /// Attempts to unlock the next node in the tree.
-        /// Delegates the affordability check and currency deduction to <see cref="ICurrencyManager"/>.
+        /// Delegates affordability check and currency deduction to the injected functions.
         /// </summary>
         /// <returns>True if the node was unlocked, false if insufficient funds or tree is complete.</returns>
         public bool TryUnlockNext()
         {
             if (!CanUnlockNext()) return false;
 
-            _currencyManager.SpendCurrency(CurrencyType, GetNextPrice());
+            OnSpendCurrency(GetNextPrice());
 
             int unlockedIndex = NextUnlockIndex;
             NextUnlockIndex++;
