@@ -84,5 +84,7 @@ namespace SkillTree
         /// Returns true if the node at the given index has been unlocked.
         /// </summary>
         public bool IsUnlocked(int nodeIndex) => nodeIndex < NextUnlockIndex;
+        
+        public float GetNodePrice(int nodeIndex) => Config.GetPrice(nodeIndex);
     }
 }
